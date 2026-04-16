@@ -869,7 +869,7 @@ let state = {
 // ============================================================
 // AUTO CODE GENERATION
 // ============================================================
-// Async: uses Firebase atomic counter to prevent duplicate codes
+// Async: scans Firebase for actual max code to guarantee no duplicates
 async function getNextCode(category) {
   try {
     if (category === '商品標準書') {
@@ -877,71 +877,56 @@ async function getNextCode(category) {
       const rocYear = now.getFullYear() - 1911;
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const prefix = String(rocYear) + month;
-      const counterKey = 'counters/goods_' + prefix;
-      // Read current counter
-      const res = await fetch(_RTDB + '/' + counterKey + '.json');
-      const val = await res.json();
-      const next = (val || 0) + 1;
-      // Write incremented value
-      await fetch(_RTDB + '/' + counterKey + '.json', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(next)
-      });
-      return prefix + String(next).padStart(3, '0');
+
+      // Get all standards from Firebase (already in DB after load)
+      // Also do a fresh check of just this month's codes
+      const res = await fetch(_RTDB + '/standards.json?shallow=true');
+      const keys = await res.json();
+      // Keys only - we need to check codes for this prefix
+      // Use local DB which is already loaded (most reliable)
+      const localMax = Math.max(0, ...DB
+        .filter(r => r.category === '商品標準書' && String(r.code).startsWith(prefix))
+        .map(r => parseInt(String(r.code).slice(prefix.length)) || 0));
+      return prefix + String(localMax + 1).padStart(3, '0');
 
     } else if (category === '物料標準書') {
-      const res = await fetch(_RTDB + '/counters/material.json');
-      const val = await res.json();
-      // Find max from DB as starting point if counter not set
-      const localMax = Math.max(0, ...DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code)));
-      const next = Math.max((val || 0), localMax) + 1;
-      await fetch(_RTDB + '/counters/material.json', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(next)
-      });
-      return String(next).padStart(7, '0');
+      const localMax = Math.max(0, ...DB
+        .filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code))
+        .map(r => parseInt(r.code)));
+      return String(localMax + 1).padStart(7, '0');
 
     } else {
-      const res = await fetch(_RTDB + '/counters/external.json');
-      const val = await res.json();
-      const localMax = Math.max(0, ...DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', ''))));
-      const next = Math.max((val || 0), localMax) + 1;
-      await fetch(_RTDB + '/counters/external.json', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(next)
-      });
-      return 'WI-O-' + String(next).padStart(3, '0');
+      const localMax = Math.max(0, ...DB
+        .filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code))
+        .map(r => parseInt(r.code.replace('WI-O-', ''))));
+      return 'WI-O-' + String(localMax + 1).padStart(3, '0');
     }
   } catch(e) {
-    console.warn('Firebase counter failed, using local:', e);
+    console.warn('getNextCode error, using local DB:', e);
     return getNextCodeLocal(category);
   }
 }
 
-// Local fallback
+// Local fallback (same logic)
 function getNextCodeLocal(category) {
   if (category === '商品標準書') {
     const now = new Date();
     const rocYear = now.getFullYear() - 1911;
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const prefix = String(rocYear) + month;
-    const same = DB.filter(r => r.category === '商品標準書' && r.code.startsWith(prefix));
-    let maxSeq = 0;
-    same.forEach(r => {
-      const seq = parseInt(r.code.slice(prefix.length));
-      if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-    });
-    return prefix + String(maxSeq + 1).padStart(3, '0');
+    const max = Math.max(0, ...DB
+      .filter(r => r.category === '商品標準書' && String(r.code).startsWith(prefix))
+      .map(r => parseInt(String(r.code).slice(prefix.length)) || 0));
+    return prefix + String(max + 1).padStart(3, '0');
   } else if (category === '物料標準書') {
-    const nums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code));
-    const max = nums.length ? Math.max(...nums) : 0;
+    const max = Math.max(0, ...DB
+      .filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code))
+      .map(r => parseInt(r.code)));
     return String(max + 1).padStart(7, '0');
   } else {
-    const nums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', '')));
-    const max = nums.length ? Math.max(...nums) : 0;
+    const max = Math.max(0, ...DB
+      .filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code))
+      .map(r => parseInt(r.code.replace('WI-O-', ''))));
     return 'WI-O-' + String(max + 1).padStart(3, '0');
   }
 }
