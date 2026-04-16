@@ -1184,7 +1184,7 @@ async function _openAddModal() {
   document.getElementById('fCode').value = '產生中...';
   document.getElementById('fName').value = '';
   document.getElementById('fProductId').value = '';
-  document.getElementById('fVersion').value = '';
+  document.getElementById('fVersion').value = '1';
   document.getElementById('modalOverlay').classList.add('open');
   // Fetch next code from Firebase
   const nextCode = await getNextCode(cat);
