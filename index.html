@@ -1100,7 +1100,7 @@ function renderTable() {
   } else {
     tbody.innerHTML = slice.map((r, i) => {
       const q = state.query;
-      return `<tr data-id="${r.id}" onclick="toggleRow(event,${r.id})">
+      return `<tr data-id="${r.id}" onclick="toggleRow(event,'${r.id}')">
         <td class="row-num">${start + i + 1}</td>
         <td>${catBadge(r.category)}</td>
         <td class="code-cell">${highlight(r.code, q)}</td>
@@ -1108,7 +1108,7 @@ function renderTable() {
         <td class="id-cell">${highlight(r.product_id, q)}</td>
         <td class="ver-cell">${r.version ? '<span class="ver-badge">v' + escHtml(r.version) + '</span>' : ''}</td>
         <td>
-          <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openEditModal(event,${r.id})">✏️ 編輯</button>
+          <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openEditModal(event,'${r.id}')">✏️ 編輯</button>
         </td>
       </tr>
       <tr id="detail-${r.id}">
@@ -1122,8 +1122,8 @@ function renderTable() {
               <div class="detail-item"><div class="detail-key">版次</div><div class="detail-val">${r.version ? 'v' + escHtml(r.version) : '—'}</div></div>
             </div>
             <div class="detail-actions">
-              <button class="btn" onclick="copyRow(event,${r.id})">📋 複製資料</button>
-              <button class="btn" style="color:var(--red);border-color:var(--red);" onclick="deleteRow(event,${r.id})">🗑 刪除</button>
+              <button class="btn" onclick="copyRow(event,'${r.id}')">📋 複製資料</button>
+              <button class="btn" style="color:var(--red);border-color:var(--red);" onclick="deleteRow(event,'${r.id}')">🗑 刪除</button>
             </div>
           </div>
         </td>
