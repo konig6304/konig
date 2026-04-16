@@ -869,9 +869,52 @@ let state = {
 // ============================================================
 // AUTO CODE GENERATION
 // ============================================================
-function getNextCode(category) {
+// Async version: queries Firebase for latest code to avoid duplicates
+async function getNextCode(category) {
+  try {
+    // Query Firebase for latest codes of this category
+    const res = await fetch(_RTDB + '/standards.json?orderBy="category"&equalTo="' + encodeURIComponent(category) + '"&limitToLast=200');
+    const data = await res.json();
+    const codes = data ? Object.values(data).map(r => r.code || '').filter(Boolean) : [];
+
+    if (category === '商品標準書') {
+      const now = new Date();
+      const rocYear = now.getFullYear() - 1911;
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const prefix = String(rocYear) + month;
+      // Also check local DB for any unsaved ones
+      const localCodes = DB.filter(r => r.category === '商品標準書' && r.code.startsWith(prefix))
+                           .map(r => r.code);
+      const allCodes = [...new Set([...codes, ...localCodes])].filter(c => c.startsWith(prefix));
+      let maxSeq = 0;
+      allCodes.forEach(c => {
+        const seq = parseInt(c.slice(prefix.length));
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      });
+      return prefix + String(maxSeq + 1).padStart(3, '0');
+
+    } else if (category === '物料標準書') {
+      const remotNums = codes.filter(c => /^\d{4,7}$/.test(c)).map(c => parseInt(c));
+      const localNums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code));
+      const max = Math.max(0, ...remotNums, ...localNums);
+      return String(max + 1).padStart(7, '0');
+
+    } else {
+      const remoteNums = codes.filter(c => /^WI-O-\d+$/.test(c)).map(c => parseInt(c.replace('WI-O-', '')));
+      const localNums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', '')));
+      const max = Math.max(0, ...remoteNums, ...localNums);
+      return 'WI-O-' + String(max + 1).padStart(3, '0');
+    }
+  } catch(e) {
+    // Fallback to local DB if Firebase query fails
+    console.warn('Firebase code query failed, using local:', e);
+    return getNextCodeLocal(category);
+  }
+}
+
+// Local fallback
+function getNextCodeLocal(category) {
   if (category === '商品標準書') {
-    // 民國年(3碼)+月份(2碼)+三碼流水碼 e.g. 11407001
     const now = new Date();
     const rocYear = now.getFullYear() - 1911;
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -884,15 +927,11 @@ function getNextCode(category) {
     });
     return prefix + String(maxSeq + 1).padStart(3, '0');
   } else if (category === '物料標準書') {
-    // 七碼流水碼 e.g. 0004622
-    const nums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code))
-                   .map(r => parseInt(r.code));
+    const nums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code));
     const max = nums.length ? Math.max(...nums) : 0;
     return String(max + 1).padStart(7, '0');
   } else {
-    // WI-O-三碼流水碼 e.g. WI-O-212
-    const nums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code))
-                   .map(r => parseInt(r.code.replace('WI-O-', '')));
+    const nums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', '')));
     const max = nums.length ? Math.max(...nums) : 0;
     return 'WI-O-' + String(max + 1).padStart(3, '0');
   }
@@ -1142,22 +1181,25 @@ function goPage(p) {
 // ============================================================
 function openAddModal() {
   requireAuth(_openAddModal); }
-function _openAddModal() {
+async function _openAddModal() {
   state.editId = null;
   document.getElementById('modalTitle').textContent = '新增標準書資料';
   document.getElementById('saveBtn').textContent = '新增';
   const cat = state.category !== '全部' ? state.category : '商品標準書';
   document.getElementById('fCategory').value = cat;
-  document.getElementById('fCode').value = getNextCode(cat);
+  document.getElementById('fCode').value = '產生中...';
   document.getElementById('fName').value = '';
   document.getElementById('fProductId').value = '';
   document.getElementById('fVersion').value = '';
-  updateCodeHint();
   document.getElementById('modalOverlay').classList.add('open');
+  // Fetch next code from Firebase
+  const nextCode = await getNextCode(cat);
+  document.getElementById('fCode').value = nextCode;
+  updateCodeHint();
   setTimeout(() => document.getElementById('fName').focus(), 100);
 }
 
-function updateCodeHint() {
+async function updateCodeHint() {
   const cat = document.getElementById('fCategory').value;
   const hints = {
     '商品標準書': '格式：民國年(3碼)+月份(2碼)+流水碼(3碼)　例：11407001',
@@ -1166,9 +1208,12 @@ function updateCodeHint() {
   };
   const el = document.getElementById('codeHint');
   if (el) el.textContent = hints[cat] || '';
-  // Also auto-fill next code when category changes
+  // Fetch next code from Firebase when category changes
   const codeEl = document.getElementById('fCode');
-  if (codeEl && !state.editId) codeEl.value = getNextCode(cat);
+  if (codeEl && !state.editId) {
+    codeEl.value = '產生中...';
+    codeEl.value = await getNextCode(cat);
+  }
 }
 
 function openEditModal(event, id) {
