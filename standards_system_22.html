@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>標準書彙總查詢系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fc;
+    --surface: #ffffff;
+    --surface2: #f1f4f9;
+    --border: #e2e8f0;
+    --border-bright: #c8d3e6;
+    --text: #1a2236;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --accent1: #2563eb;
+    --accent1-glow: rgba(37,99,235,0.10);
+    --accent2: #0891b2;
+    --accent3: #d97706;
+    --red: #dc2626;
+    --green: #16a34a;
+    --tag-goods: rgba(37,99,235,0.10);
+    --tag-goods-text: #1d4ed8;
+    --tag-mat: rgba(8,145,178,0.10);
+    --tag-mat-text: #0e7490;
+    --tag-ext: rgba(217,119,6,0.10);
+    --tag-ext-text: #b45309;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .header-stats { display: flex; gap: 20px; }
+  .stat-item { text-align: right; }
+  .stat-num { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--accent1); }
+  .stat-label { font-size: 11px; color: var(--text-muted); }
+
+  /* Tab Bar */
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+  .form-select option { color: #1a2236; }
+  .tab-btn.active {
+    background: var(--surface2);
+    border-color: var(--border-bright);
+    color: var(--text);
+  }
+  .tab-btn.active.goods { color: var(--tag-goods-text); border-color: rgba(79,142,247,0.4); }
+  .tab-btn.active.mat { color: var(--tag-mat-text); border-color: rgba(45,212,191,0.4); }
+  .tab-btn.active.ext { color: var(--tag-ext-text); border-color: rgba(245,158,11,0.4); }
+  .tab-btn.all.active { color: var(--accent1); border-color: rgba(79,142,247,0.4); }
+  .tab-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface);
+  }
+  .tab-btn.active.goods .tab-count { background: var(--tag-goods); }
+  .tab-btn.active.mat .tab-count { background: var(--tag-mat); }
+  .tab-btn.active.ext .tab-count { background: var(--tag-ext); }
+
+  /* Search & Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-wrap {
+    flex: 1; min-width: 200px;
+    position: relative;
+  }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); font-size: 15px; pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    padding: 10px 12px 10px 38px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-input::placeholder { color: var(--text-dim); }
+  .search-input:focus {
+    border-color: var(--accent1);
+    box-shadow: 0 0 0 3px var(--accent1-glow);
+  }
+  .search-clear {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 16px; padding: 4px;
+    display: none;
+  }
+  .search-clear.visible { display: block; }
+  .search-clear:hover { color: var(--text); }
+
+  .btn {
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--border-bright); background: var(--surface2); }
+  .form-select option { color: #1a2236; }
+  .btn-primary {
+    background: var(--accent1);
+    border-color: var(--accent1);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #3d7be6; border-color: #3d7be6; }
+
+  /* Results info bar */
+  .results-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .results-count { font-family: var(--mono); }
+  .results-count span { color: var(--accent1); font-weight: 600; }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { color: var(--text); }
+  thead th .sort-arrow { margin-left: 4px; color: var(--text-dim); }
+  thead th.sort-asc .sort-arrow::after { content: '↑'; color: var(--accent1); }
+  thead th.sort-desc .sort-arrow::after { content: '↓'; color: var(--accent1); }
+  thead th:not(.sort-asc):not(.sort-desc) .sort-arrow::after { content: '↕'; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  .form-select option { color: #1a2236; }
+  tbody tr.selected { background: var(--accent1-glow); }
+  td {
+    padding: 11px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  td.code-cell {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  td.name-cell { font-weight: 500; }
+  td.id-cell {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+  .cat-badge {
+    display: inline-flex; align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .cat-goods { background: var(--tag-goods); color: var(--tag-goods-text); }
+  .cat-mat { background: var(--tag-mat); color: var(--tag-mat-text); }
+  .cat-ext { background: var(--tag-ext); color: var(--tag-ext-text); }
+
+  .ver-cell { text-align: center; }
+  .ver-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+    background: rgba(139,92,246,0.12);
+    color: #7c3aed;
+    border: 1px solid rgba(139,92,246,0.2);
+  }
+
+  mark {
+    background: rgba(245,158,11,0.3);
+    color: var(--accent3);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .page-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .page-btn:hover { border-color: var(--border-bright); color: var(--text); }
+  .page-btn.active { background: var(--accent1); border-color: var(--accent1); color: #fff; }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .page-info { font-size: 12px; color: var(--text-muted); font-family: var(--mono); margin: 0 8px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(30,41,59,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-lg);
+    width: 90%; max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+  .modal-body { padding: 24px; }
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus { border-color: var(--accent1); }
+  .form-select option { background: var(--surface2); }
+  .form-select option { color: #1a2236; }
+  .form-required { color: var(--red); margin-left: 2px; }
+  .form-actions {
+    display: flex; gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+  .form-actions .btn { flex: 1; justify-content: center; }
+
+  /* Toast */
+  .toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 2000;
+  }
+  .toast {
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    animation: toastIn 0.2s ease;
+    max-width: 300px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Row detail panel */
+  .detail-panel {
+    padding: 0 16px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: none;
+    animation: slideDown 0.15s ease;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .detail-panel.open { display: block; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding-top: 14px; }
+  .detail-item { }
+  .detail-key { font-size: 10px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 4px; }
+  .detail-val { font-size: 13px; color: var(--text); font-family: var(--mono); }
+  .detail-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .detail-actions .btn { font-size: 12px; padding: 6px 14px; }
+
+  /* Row number */
+  .row-num { color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+
+  /* Password modal */
+  .pwd-dots { display:flex; gap:10px; justify-content:center; margin:20px 0 8px; }
+  .pwd-dot {
+    width:14px; height:14px; border-radius:50%;
+    background: var(--border); border:2px solid var(--border-bright);
+    transition: all 0.15s;
+  }
+  .pwd-dot.filled { background: var(--accent1); border-color: var(--accent1); }
+  .pwd-keypad {
+    display: grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:16px;
+  }
+  .pwd-key {
+    padding: 14px; text-align:center; border-radius:var(--radius);
+    background: var(--surface2); border:1px solid var(--border);
+    font-size:16px; font-weight:600; cursor:pointer; font-family:var(--mono);
+    transition: all 0.12s; user-select:none;
+  }
+  .pwd-key:hover { background:var(--border); border-color:var(--border-bright); }
+  .pwd-key:active { transform:scale(0.94); }
+  .pwd-key.del { color:var(--red); }
+  .pwd-error { color:var(--red); font-size:12px; text-align:center; min-height:18px; margin-top:4px; }
+  .pwd-hint { font-size:12px; color:var(--text-muted); text-align:center; margin-top:6px; }
+  .change-pwd-link {
+    display:block; text-align:center; font-size:12px;
+    color:var(--accent1); cursor:pointer; margin-top:12px;
+    text-decoration:underline;
+  }
+
+  @media (max-width: 768px) {
+    .header { flex-direction: column; gap: 14px; }
+    .header-stats { justify-content: center; }
+    .tab-btn { font-size: 12px; padding: 8px 10px; }
+    .controls { gap: 8px; }
+    td:nth-child(1), th:nth-child(1) { display: none; } /* hide # on mobile */
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+</head>
+<body>
+<div class="app">
+
+  <!-- Loading Bar -->
+  <div id="loadingBar" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+    <div style="font-size:32px;">⏳</div>
+    <div style="font-size:15px;font-weight:600;color:#1a2236;">從 Firebase 載入資料中...</div>
+    <div style="width:280px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+      <div style="height:100%;width:60%;background:linear-gradient(90deg,#2563eb,#06b6d4);border-radius:99px;animation:loadSlide 1.2s ease-in-out infinite alternate;"></div>
+    </div>
+  </div>
+  <style>@keyframes loadSlide{from{transform:translateX(-50%)}to{transform:translateX(80%)}}</style>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-icon">📋</div>
+      <div>
+        <div class="header-title">標準書彙總查詢系統</div>
+        <div class="header-sub">Standards Document Management System</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <button class="btn" onclick="togglePwdPanel()" id="pwdPanelBtn" style="font-size:12px;padding:7px 14px;gap:6px;">
+        🔑 修改密碼
+      </button>
+      <div class="stat-item">
+        <div class="stat-num" id="totalCount">—</div>
+        <div class="stat-label">總筆數</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline Change Password Panel -->
+  <div id="pwdPanel" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;">🔑 修改密碼</div>
+      <button class="modal-close" onclick="togglePwdPanel()" style="font-size:18px;">✕</button>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label">目前密碼</label>
+        <input type="password" class="form-input" id="inOld" placeholder="輸入目前密碼" autocomplete="off">
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label">新密碼</label>
+        <input type="password" class="form-input" id="inNew" placeholder="輸入新密碼" autocomplete="new-password">
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label">確認新密碼</label>
+        <input type="password" class="form-input" id="inConfirm" placeholder="再輸入一次" autocomplete="new-password" onkeydown="if(event.key==='Enter')inlineSavePwd()">
+      </div>
+      <button class="btn btn-primary" onclick="inlineSavePwd()" style="white-space:nowrap;padding:9px 20px;">確認修改</button>
+    </div>
+    <div id="inPwdError" style="font-size:12px;color:var(--red);margin-top:8px;min-height:16px;"></div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn goods active" onclick="setCategory('商品標準書')">
+      📦 商品標準書
+      <span class="tab-count" id="count-goods">—</span>
+    </button>
+    <button class="tab-btn mat" onclick="setCategory('物料標準書')">
+      🧰 物料標準書
+      <span class="tab-count" id="count-mat">—</span>
+    </button>
+    <button class="tab-btn ext" onclick="setCategory('外購品標準書')">
+      🏭 外購品標準書
+      <span class="tab-count" id="count-ext">—</span>
+    </button>
+    <button class="tab-btn all" onclick="setCategory('全部')">
+      🗂 全部
+      <span class="tab-count" id="count-all">—</span>
+    </button>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="輸入企劃編號 / 品號 / 品名，多關鍵字用空格或+分隔" oninput="onSearch()">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">
+      ＋ 新增資料
+    </button>
+    <button class="btn" onclick="exportExcel()">
+      ↓ 匯出 Excel
+    </button>
+    <label class="btn" style="cursor:pointer;">
+      ↑ 匯入 Excel
+      <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="requireAuth(() => importExcel(event))">
+    </label>
+    <button class="btn" onclick="openTemplateModal()" title="下載匯入範本">
+      📋 範本
+    </button>
+  </div>
+
+  <!-- Results bar -->
+  <div class="results-bar">
+    <div class="results-count">找到 <span id="resultCount">0</span> 筆資料</div>
+    <div id="searchHint" style="color:var(--text-dim);font-size:12px;"></div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('idx')"># <span class="sort-arrow"></span></th>
+          <th onclick="sortBy('cat')">類別 <span class="sort-arrow"></span></th>
+          <th onclick="sortBy('code')">文件/企劃編號 <span class="sort-arrow"></span></th>
+          <th onclick="sortBy('name')">品名 <span class="sort-arrow"></span></th>
+          <th onclick="sortBy('pid')">品號/編號 <span class="sort-arrow"></span></th>
+          <th onclick="sortBy('ver')">版次 <span class="sort-arrow"></span></th>
+          <th style="cursor:default">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">新增標準書資料</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">類別 <span class="form-required">*</span></label>
+        <select class="form-select" id="fCategory" onchange="updateCodeHint()">
+          <option value="商品標準書">📦 商品標準書</option>
+          <option value="物料標準書">🧰 物料標準書</option>
+          <option value="外購品標準書">🏭 外購品標準書</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">文件/企劃編號</label>
+        <input type="text" class="form-input" id="fCode" placeholder="例: WI-O-001, 9206001">
+        <div id="codeHint" style="font-size:11px;color:var(--text-muted);margin-top:5px;font-family:var(--mono);"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">品名 <span class="form-required">*</span></label>
+        <input type="text" class="form-input" id="fName" placeholder="輸入品名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">品號/編號</label>
+        <input type="text" class="form-input" id="fProductId" placeholder="例: 43014">
+      </div>
+      <div class="form-group">
+        <label class="form-label">版次</label>
+        <input type="text" class="form-input" id="fVersion" placeholder="例: 1, 2, 3">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveRecord()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="pwdModal">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-header">
+      <div class="modal-title" id="pwdModalTitle">🔒 請輸入密碼</div>
+    </div>
+    <div class="modal-body" style="padding-bottom:8px">
+      <input type="tel" id="pwdHiddenInput" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;" inputmode="numeric" autocomplete="off">
+      <div id="pwdHint" class="pwd-hint"></div>
+      <div class="pwd-dots" id="pwdDots">
+        <div class="pwd-dot" id="dot0"></div>
+        <div class="pwd-dot" id="dot1"></div>
+        <div class="pwd-dot" id="dot2"></div>
+        <div class="pwd-dot" id="dot3"></div>
+        <div class="pwd-dot" id="dot4"></div>
+        <div class="pwd-dot" id="dot5"></div>
+        <div class="pwd-dot" id="dot6"></div>
+        <div class="pwd-dot" id="dot7"></div>
+      </div>
+      <div class="pwd-error" id="pwdError"></div>
+      <div class="pwd-keypad">
+        <button class="pwd-key" onclick="pwdKey('1')">1</button>
+        <button class="pwd-key" onclick="pwdKey('2')">2</button>
+        <button class="pwd-key" onclick="pwdKey('3')">3</button>
+        <button class="pwd-key" onclick="pwdKey('4')">4</button>
+        <button class="pwd-key" onclick="pwdKey('5')">5</button>
+        <button class="pwd-key" onclick="pwdKey('6')">6</button>
+        <button class="pwd-key" onclick="pwdKey('7')">7</button>
+        <button class="pwd-key" onclick="pwdKey('8')">8</button>
+        <button class="pwd-key" onclick="pwdKey('9')">9</button>
+        <button class="pwd-key del" onclick="pwdClear()">清除</button>
+        <button class="pwd-key" onclick="pwdKey('0')">0</button>
+        <button class="pwd-key del" onclick="pwdBack()">⌫</button>
+      </div>
+      <span class="change-pwd-link" onclick="openChangePwd()">🔑 修改密碼</span>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="changePwdModal">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header">
+      <div class="modal-title">🔑 修改密碼</div>
+      <button class="modal-close" onclick="closeChangePwd()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">目前密碼</label>
+        <input type="password" class="form-input" id="cpOld" placeholder="輸入目前密碼" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">新密碼</label>
+        <input type="password" class="form-input" id="cpNew" placeholder="輸入新密碼">
+      </div>
+      <div class="form-group">
+        <label class="form-label">確認新密碼</label>
+        <input type="password" class="form-input" id="cpConfirm" placeholder="再輸入一次新密碼">
+      </div>
+      <div class="pwd-error" id="cpError" style="text-align:left;margin-top:-8px"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeChangePwd()">取消</button>
+      <button class="btn btn-primary" onclick="confirmChangePwd()">確認修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal-overlay" id="templateModal" onclick="if(event.target===this)closeTemplateModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">📋 下載匯入範本</div>
+      <button class="modal-close" onclick="closeTemplateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">選擇要下載的範本格式，依照範本填寫後再匯入系統。</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn" style="justify-content:flex-start;gap:12px;" onclick="downloadTemplate('商品標準書')">
+          <span style="font-size:16px;">📦</span>
+          <div style="text-align:left">
+            <div style="font-weight:600">商品標準書範本</div>
+            <div style="font-size:11px;color:var(--text-muted)">企劃編號 / 產品名稱 / 禮盒編號 / 版次</div>
+          </div>
+        </button>
+        <button class="btn" style="justify-content:flex-start;gap:12px;" onclick="downloadTemplate('物料標準書')">
+          <span style="font-size:16px;">🧰</span>
+          <div style="text-align:left">
+            <div style="font-weight:600">物料標準書範本</div>
+            <div style="font-size:11px;color:var(--text-muted)">序號 / 物料名稱 / 物料編號 / 版次</div>
+          </div>
+        </button>
+        <button class="btn" style="justify-content:flex-start;gap:12px;" onclick="downloadTemplate('外購品標準書')">
+          <span style="font-size:16px;">🏭</span>
+          <div style="text-align:left">
+            <div style="font-weight:600">外購品標準書範本</div>
+            <div style="font-size:11px;color:var(--text-muted)">文件編號 / 委外產品名稱 / 產品編號 / 版次</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ── Realtime Database (REST API - no SDK needed) ────────────────────────────
+const _RTDB = "https://konig-001-default-rtdb.firebaseio.com";
+
+async function _fsGetAll() {
+  const res = await fetch(_RTDB + '/standards.json?t=' + Date.now());
+  const data = await res.json();
+  if (!data) return { docs: [] };
+  // Convert to array with id
+  const docs = Object.entries(data).map(([id, r]) => ({
+    id, data: () => r
+  }));
+  return { docs, size: docs.length };
+}
+
+async function _fsSetDoc(id, data) {
+  return fetch(_RTDB + '/standards/' + id + '.json', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+
+async function _fsDeleteDoc(id) {
+  return fetch(_RTDB + '/standards/' + id + '.json', { method: 'DELETE' });
+}
+
+// ============================================================
+// DATA
+// ============================================================
+// DB loaded from Firestore
+let DB = [];
+
+async function loadFromFirestore() {
+  showLoading(true);
+  try {
+    console.log('[Firebase] 開始載入...');
+    const snap = await _fsGetAll();
+    console.log('[Firebase] 取得', snap.docs.length, '筆');
+    DB = snap.docs.map(d => {
+      const r = typeof d.data === 'function' ? d.data() : d.data;
+      return {
+        id:         d.id,
+        category:   r.category || r.cat || '',
+        code:       r.code     || r.c   || '',
+        name:       r.name     || r.n   || '',
+        product_id: r.pid      || r.product_id || r.p || '',
+        version:    r.ver      || r.version     || r.v || '',
+        added:      false
+      };
+    });
+    // Sort handled by applyFilters (state.sortCol = 'code', sortDir = -1)
+    // Force sort: newest code first, empty code last
+    state.sortCol = 'code';
+    state.sortDir = -1;
+    DB.sort((a, b) => {
+      if (!a.code && !b.code) return 0;
+      if (!a.code) return 1;
+      if (!b.code) return -1;
+      const na = parseInt(String(a.code).replace(/\D/g,'')) || 0;
+      const nb = parseInt(String(b.code).replace(/\D/g,'')) || 0;
+      return nb - na;
+    });
+    showLoading(false);
+    updateCounts();
+    applyFilters();
+    renderTable();
+    console.log('[Firebase] 載入完成，共', DB.length, '筆');
+  } catch(err) {
+    showLoading(false);
+    console.error('[Firebase] 載入失敗:', err);
+    // Show error on page
+    const tbody = document.getElementById('tableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6">
+      <div class="empty-state">
+        <div class="icon">❌</div>
+        <p style="color:var(--red)">Firebase 載入失敗：${err.message}</p>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="loadFromFirestore()">重新載入</button>
+      </div>
+    </td></tr>`;
+    document.getElementById('resultCount').textContent = '0';
+  }
+}
+
+function showLoading(show) {
+  let el = document.getElementById('loadingBar');
+  if (!el) return;
+  el.style.display = show ? 'flex' : 'none';
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  category: '商品標準書',
+  query: '',
+  sortCol: 'code',
+  sortDir: -1,
+  page: 1,
+  pageSize: 50,
+  filtered: [],
+  editId: null
+};
+
+// ============================================================
+// AUTO CODE GENERATION
+// ============================================================
+function getNextCode(category) {
+  if (category === '商品標準書') {
+    // 民國年(3碼)+月份(2碼)+三碼流水碼 e.g. 11407001
+    const now = new Date();
+    const rocYear = now.getFullYear() - 1911;
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = String(rocYear) + month;
+    const same = DB.filter(r => r.category === '商品標準書' && r.code.startsWith(prefix));
+    let maxSeq = 0;
+    same.forEach(r => {
+      const seq = parseInt(r.code.slice(prefix.length));
+      if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+    });
+    return prefix + String(maxSeq + 1).padStart(3, '0');
+  } else if (category === '物料標準書') {
+    // 七碼流水碼 e.g. 0004622
+    const nums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code))
+                   .map(r => parseInt(r.code));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return String(max + 1).padStart(7, '0');
+  } else {
+    // WI-O-三碼流水碼 e.g. WI-O-212
+    const nums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code))
+                   .map(r => parseInt(r.code.replace('WI-O-', '')));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return 'WI-O-' + String(max + 1).padStart(3, '0');
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  loadFromFirestore();
+}
+
+function updateCounts() {
+  const cats = ['商品標準書','物料標準書','外購品標準書'];
+  document.getElementById('count-all').textContent = DB.length.toLocaleString();
+  document.getElementById('totalCount').textContent = DB.length.toLocaleString();
+  ['goods','mat','ext'].forEach((cls, i) => {
+    document.getElementById('count-' + cls).textContent = 
+      DB.filter(r => r.category === cats[i]).length.toLocaleString();
+  });
+}
+
+// ============================================================
+// FILTER & SORT
+// ============================================================
+function setCategory(cat) {
+  state.category = cat;
+  state.page = 1;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const clsMap = {'商品標準書':'goods','物料標準書':'mat','外購品標準書':'ext','全部':'all'};
+  document.querySelector('.tab-btn.' + clsMap[cat]).classList.add('active');
+  applyFilters();
+  renderTable();
+}
+
+function onSearch() {
+  state.query = document.getElementById('searchInput').value;
+  state.page = 1;
+  const clear = document.getElementById('searchClear');
+  clear.classList.toggle('visible', state.query.length > 0);
+  applyFilters();
+  renderTable();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  state.query = '';
+  document.getElementById('searchClear').classList.remove('visible');
+  state.page = 1;
+  applyFilters();
+  renderTable();
+}
+
+function applyFilters() {
+  let data = DB;
+  if (state.category !== '全部') {
+    data = data.filter(r => r.category === state.category);
+  }
+  if (state.query.trim()) {
+    // 支援多關鍵字：空格或 + 分隔，全部條件都要符合（AND）
+    const keywords = state.query.trim().toLowerCase()
+      .split(/[\s+]+/).filter(k => k.length > 0);
+    data = data.filter(r => {
+      const searchText = (r.name + ' ' + r.product_id + ' ' + r.code).toLowerCase();
+      return keywords.every(k => searchText.includes(k));
+    });
+  }
+  // Sort
+  data = [...data].sort((a, b) => {
+    let va, vb;
+    if (state.sortCol === 'idx') { va = a.id; vb = b.id; }
+    else if (state.sortCol === 'cat') { va = a.category; vb = b.category; }
+    else if (state.sortCol === 'code') {
+      // Empty code always goes to bottom
+      if (!a.code && !b.code) return 0;
+      if (!a.code) return 1;
+      if (!b.code) return -1;
+      const na = parseInt(String(a.code).replace(/[^0-9]/g,'')) || 0;
+      const nb = parseInt(String(b.code).replace(/[^0-9]/g,'')) || 0;
+      // sortDir: -1 = descending (newest first), 1 = ascending
+      return nb !== na ? (state.sortDir === -1 ? nb - na : na - nb)
+                       : b.code.localeCompare(a.code) * state.sortDir;
+    }
+    else if (state.sortCol === 'name') { va = a.name; vb = b.name; }
+    else if (state.sortCol === 'pid') { va = a.product_id; vb = b.product_id; }
+    else if (state.sortCol === 'ver') { va = a.version; vb = b.version; }
+    if (va < vb) return -state.sortDir;
+    if (va > vb) return state.sortDir;
+    return 0;
+  });
+  state.filtered = data;
+  document.getElementById('resultCount').textContent = data.length.toLocaleString();
+  const keywords = state.query.trim().toLowerCase().split(/[\s+]+/).filter(k => k.length > 0);
+  const hint = keywords.length > 1
+    ? '多關鍵字：' + keywords.map(k => '"' + k + '"').join(' AND ')
+    : state.query.trim() ? '關鍵字: "' + state.query.trim() + '"' : '';
+  document.getElementById('searchHint').textContent = hint;
+}
+
+function sortBy(col) {
+  if (state.sortCol === col) state.sortDir *= -1;
+  else { state.sortCol = col; state.sortDir = 1; }
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+  });
+  const colMap = {idx:0,cat:1,code:2,name:3,pid:4};
+  const idx = colMap[col];
+  if (idx !== undefined) {
+    const th = document.querySelectorAll('thead th')[idx];
+    th.classList.add(state.sortDir === 1 ? 'sort-asc' : 'sort-desc');
+  }
+  applyFilters();
+  renderTable();
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function highlight(text, query) {
+  if (!query) return escHtml(text);
+  const q = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(' + q + ')', 'gi');
+  return escHtml(text).replace(re, '<mark>$1</mark>');
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function catBadge(cat) {
+  const cls = cat === '商品標準書' ? 'cat-goods' : cat === '物料標準書' ? 'cat-mat' : 'cat-ext';
+  const icon = cat === '商品標準書' ? '📦' : cat === '物料標準書' ? '🧰' : '🏭';
+  return `<span class="cat-badge ${cls}">${icon} ${escHtml(cat)}</span>`;
+}
+
+let expandedRow = null;
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const { filtered, page, pageSize } = state;
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const curPage = Math.min(page, totalPages);
+  state.page = curPage;
+  const start = (curPage - 1) * pageSize;
+  const slice = filtered.slice(start, start + pageSize);
+  
+  if (slice.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6">
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>找不到符合條件的資料</p>
+      </div>
+    </td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map((r, i) => {
+      const q = state.query;
+      return `<tr data-id="${r.id}" onclick="toggleRow(event,${r.id})">
+        <td class="row-num">${start + i + 1}</td>
+        <td>${catBadge(r.category)}</td>
+        <td class="code-cell">${highlight(r.code, q)}</td>
+        <td class="name-cell">${highlight(r.name, q)}</td>
+        <td class="id-cell">${highlight(r.product_id, q)}</td>
+        <td class="ver-cell">${r.version ? '<span class="ver-badge">v' + escHtml(r.version) + '</span>' : ''}</td>
+        <td>
+          <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openEditModal(event,${r.id})">✏️ 編輯</button>
+        </td>
+      </tr>
+      <tr id="detail-${r.id}">
+        <td colspan="6" style="padding:0;">
+          <div class="detail-panel" id="panel-${r.id}">
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-key">類別</div><div class="detail-val">${escHtml(r.category)}</div></div>
+              <div class="detail-item"><div class="detail-key">文件/企劃編號</div><div class="detail-val">${escHtml(r.code) || '—'}</div></div>
+              <div class="detail-item"><div class="detail-key">品名</div><div class="detail-val">${escHtml(r.name)}</div></div>
+              <div class="detail-item"><div class="detail-key">品號/編號</div><div class="detail-val">${escHtml(r.product_id) || '—'}</div></div>
+              <div class="detail-item"><div class="detail-key">版次</div><div class="detail-val">${r.version ? 'v' + escHtml(r.version) : '—'}</div></div>
+            </div>
+            <div class="detail-actions">
+              <button class="btn" onclick="copyRow(event,${r.id})">📋 複製資料</button>
+              <button class="btn" style="color:var(--red);border-color:var(--red);" onclick="deleteRow(event,${r.id})">🗑 刪除</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+  renderPagination(totalPages, curPage);
+}
+
+function toggleRow(event, id) {
+  // Don't toggle when clicking buttons
+  if (event.target.tagName === 'BUTTON' || event.target.closest('button')) return;
+  const panel = document.getElementById('panel-' + id);
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  // Close previous
+  if (expandedRow !== null && expandedRow !== id) {
+    const prev = document.getElementById('panel-' + expandedRow);
+    const prevRow = document.querySelector(`tr[data-id="${expandedRow}"]`);
+    if (prev) prev.classList.remove('open');
+    if (prevRow) prevRow.classList.remove('selected');
+  }
+  panel.classList.toggle('open', !isOpen);
+  if (row) row.classList.toggle('selected', !isOpen);
+  expandedRow = isOpen ? null : id;
+}
+
+function renderPagination(totalPages, curPage) {
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+  let html = '';
+  html += `<button class="page-btn" ${curPage===1?'disabled':''} onclick="goPage(${curPage-1})">‹</button>`;
+  
+  const range = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= curPage-2 && p <= curPage+2)) {
+      range.push(p);
+    } else if (range[range.length-1] !== '…') {
+      range.push('…');
+    }
+  }
+  range.forEach(p => {
+    if (p === '…') {
+      html += `<span style="color:var(--text-dim);padding:0 4px">…</span>`;
+    } else {
+      html += `<button class="page-btn ${p===curPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+    }
+  });
+  html += `<button class="page-btn" ${curPage===totalPages?'disabled':''} onclick="goPage(${curPage+1})">›</button>`;
+  html += `<span class="page-info">第 ${curPage}/${totalPages} 頁</span>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) {
+  state.page = p;
+  expandedRow = null;
+  renderTable();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openAddModal() {
+  requireAuth(_openAddModal); }
+function _openAddModal() {
+  state.editId = null;
+  document.getElementById('modalTitle').textContent = '新增標準書資料';
+  document.getElementById('saveBtn').textContent = '新增';
+  const cat = state.category !== '全部' ? state.category : '商品標準書';
+  document.getElementById('fCategory').value = cat;
+  document.getElementById('fCode').value = getNextCode(cat);
+  document.getElementById('fName').value = '';
+  document.getElementById('fProductId').value = '';
+  document.getElementById('fVersion').value = '';
+  updateCodeHint();
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 100);
+}
+
+function updateCodeHint() {
+  const cat = document.getElementById('fCategory').value;
+  const hints = {
+    '商品標準書': '格式：民國年(3碼)+月份(2碼)+流水碼(3碼)　例：11407001',
+    '物料標準書': '格式：七碼流水碼　例：0004622',
+    '外購品標準書': '格式：WI-O-三碼流水碼　例：WI-O-212'
+  };
+  const el = document.getElementById('codeHint');
+  if (el) el.textContent = hints[cat] || '';
+  // Also auto-fill next code when category changes
+  const codeEl = document.getElementById('fCode');
+  if (codeEl && !state.editId) codeEl.value = getNextCode(cat);
+}
+
+function openEditModal(event, id) {
+  event.stopPropagation();
+  requireAuth(() => _openEditModal(id)); }
+function _openEditModal(id) {
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  state.editId = id;
+  document.getElementById('modalTitle').textContent = '編輯資料';
+  document.getElementById('saveBtn').textContent = '更新';
+  document.getElementById('fCategory').value = r.category;
+  document.getElementById('fCode').value = r.code;
+  document.getElementById('fName').value = r.name;
+  document.getElementById('fProductId').value = r.product_id;
+  document.getElementById('fVersion').value = r.version || '';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(event) {
+  if (event.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function saveRecord() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('品名為必填欄位', 'error'); return; }
+  
+  const rec = {
+    category: document.getElementById('fCategory').value,
+    code: document.getElementById('fCode').value.trim(),
+    name: name,
+    product_id: document.getElementById('fProductId').value.trim(),
+    version: document.getElementById('fVersion').value.trim(),
+    added: true
+  };
+  
+  if (state.editId !== null) {
+    const idx = DB.findIndex(r => r.id === state.editId);
+    if (idx >= 0) { rec.id = state.editId; DB[idx] = rec; }
+    _fsSetDoc(rec.id, {
+      category: rec.category, code: rec.code, name: rec.name,
+      product_id: rec.product_id, version: rec.version
+    }).catch(e => showToast('⚠️ 雲端同步失敗：'+e.message,'error'));
+    showToast('✅ 資料已更新', 'success');
+  } else {
+    const newId = 'u_' + Date.now();
+    rec.id = newId;
+    DB.unshift(rec);
+    _fsSetDoc(newId, {
+      category: rec.category, code: rec.code, name: rec.name,
+      product_id: rec.product_id, version: rec.version
+    }).catch(e => showToast('⚠️ 雲端同步失敗：'+e.message,'error'));
+    showToast('✅ 已新增資料', 'success');
+  }
+
+  closeModal();
+  updateCounts();
+  applyFilters();
+  renderTable();
+}
+
+// ============================================================
+// ROW ACTIONS
+// ============================================================
+function copyRow(event, id) {
+  event.stopPropagation();
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  const txt = `${r.category}	${r.code}	${r.name}	${r.product_id}`;
+  navigator.clipboard.writeText(txt).then(() => showToast('📋 已複製到剪貼簿', 'success'));
+}
+
+function deleteRow(event, id) {
+  event.stopPropagation();
+  requireAuth(() => _deleteRow(id)); }
+function _deleteRow(id) {
+  if (!confirm('確認刪除此筆資料？')) return;
+  DB = DB.filter(r => r.id !== id);
+  expandedRow = null;
+  updateCounts();
+  applyFilters();
+  renderTable();
+  _fsDeleteDoc(id)
+    .then(()  => showToast('🗑 已刪除', 'success'))
+    .catch(e  => showToast('⚠️ 雲端刪除失敗：'+e.message,'error'));
+}
+
+// ============================================================
+// EXPORT EXCEL (原始格式)
+// ============================================================
+function exportExcel() {
+  const data = state.filtered;
+  if (!data.length) { showToast('沒有資料可匯出', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Group by category
+  const cats = ['商品標準書', '物料標準書', '外購品標準書'];
+  const sheetNames = { '商品標準書': '商品標準書', '物料標準書': '物料標準書', '外購品標準書': '外購品標準書' };
+  const titles = {
+    '商品標準書':  '商品禮盒包裝作業明細表一覽表',
+    '物料標準書':  '物料標準明細表一覽表',
+    '外購品標準書': '委外產品規格標準書一覽表'
+  };
+  const headers = {
+    '商品標準書':  ['企劃編號', '產品名稱', '禮盒編號', '版次'],
+    '物料標準書':  ['序號', '物料名稱', '物料編號', '版次'],
+    '外購品標準書': ['文件編號', '委外產品名稱', '產品編號', '版次']
+  };
+  const colWidths = {
+    '商品標準書':  [{ wch: 17 }, { wch: 57 }, { wch: 28 }, { wch: 8 }],
+    '物料標準書':  [{ wch: 16 }, { wch: 57 }, { wch: 21 }, { wch: 8 }],
+    '外購品標準書': [{ wch: 14 }, { wch: 40 }, { wch: 22 }, { wch: 8 }]
+  };
+
+  let totalExported = 0;
+  cats.forEach(cat => {
+    const catData = data.filter(r => r.category === cat);
+    if (!catData.length) return;
+
+    const hdr = headers[cat];
+    const aoa = [
+      [titles[cat], '', '', ''],   // Row 0: title (merge A1:D1)
+      hdr,                          // Row 1: header
+      ...catData.map(r => [r.code, r.name, r.product_id, r.version || ''])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Merge title row A1:D1
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    ws['!cols'] = colWidths[cat];
+
+    // Style all cells: center alignment + thin border
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+        ws[addr].s = {
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: {
+            top:    { style: 'thin', color: { auto: 1 } },
+            bottom: { style: 'thin', color: { auto: 1 } },
+            left:   { style: 'thin', color: { auto: 1 } },
+            right:  { style: 'thin', color: { auto: 1 } }
+          },
+          font: R === 0 ? { bold: false, sz: 11 } :
+                R === 1 ? { bold: false, sz: 10 } : { sz: 10 }
+        };
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetNames[cat]);
+    totalExported += catData.length;
+  });
+
+  const fname = '標準書彙總_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+  XLSX.writeFile(wb, fname, { bookType: 'xlsx', type: 'binary', cellStyles: true });
+  showToast('↓ 已匯出 ' + totalExported + ' 筆資料', 'success');
+}
+
+// ============================================================
+// IMPORT EXCEL
+// ============================================================
+function importExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+
+      const catMap = {
+        '商品標準書': '商品標準書',
+        '物料標準書': '物料標準書',
+        '外購品標準書': '外購品標準書',
+        // Also accept original Chinese sheet names
+        '商品禮盒': '商品標準書',
+        '物料標準': '物料標準書',
+        '委外產品': '外購品標準書',
+      };
+      // Header field mapping
+      const fieldMap = {
+        '企劃編號': 'code', '編號': 'code', '文件編號': 'code', '序號': 'code',
+        '產品名稱': 'name', '物料名稱': 'name', '委外產品名稱': 'name',
+        '禮盒編號': 'product_id', '物料編號': 'product_id', '產品編號': 'product_id',
+        '版次': 'version', '版本': 'version'
+      };
+
+      let imported = 0, skipped = 0;
+      const maxId = DB.reduce((m, r) => Math.max(m, r.id), 0);
+      let newId = maxId + 1;
+
+      wb.SheetNames.forEach(sheetName => {
+        // Determine category from sheet name
+        let category = null;
+        for (const [key, val] of Object.entries(catMap)) {
+          if (sheetName.includes(key)) { category = val; break; }
+        }
+
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rows.length < 2) return;
+
+        // Find header row (first row where we recognise column names)
+        let headerRowIdx = -1, headerCols = {};
+        for (let ri = 0; ri < Math.min(5, rows.length); ri++) {
+          const matches = rows[ri].filter(v => fieldMap[String(v).trim()]);
+          if (matches.length >= 2) {
+            headerRowIdx = ri;
+            rows[ri].forEach((v, ci) => {
+              const key = fieldMap[String(v).trim()];
+              if (key) headerCols[key] = ci;
+            });
+            break;
+          }
+        }
+        if (headerRowIdx < 0 || !headerCols.name) { skipped++; return; }
+
+        // Auto-detect category from title row if not mapped by sheet name
+        if (!category) {
+          const titleRow = rows.slice(0, headerRowIdx).join(' ');
+          if (titleRow.includes('物料')) category = '物料標準書';
+          else if (titleRow.includes('委外')) category = '外購品標準書';
+          else category = '商品標準書';
+        }
+
+        for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
+          const row = rows[ri];
+          const name = String(row[headerCols.name] ?? '').trim();
+          if (!name) continue;
+          let code = String(row[headerCols.code] ?? '').trim();
+          const pid  = String(row[headerCols.product_id] ?? '').trim();
+          const ver  = String(row[headerCols.version] ?? '').trim();
+
+          // Auto-generate code if empty
+          if (!code) code = getNextCode(category);
+
+          // Check duplicate by name+product_id
+          const dup = DB.find(r => r.name === name && r.product_id === pid && r.category === category);
+          if (dup) { skipped++; continue; }
+
+          const fsId = 'u_' + Date.now() + '_' + newId;
+          DB.unshift({ id: fsId, category, code, name, product_id: pid, version: ver, added: true });
+          _fsSetDoc(fsId, { category, code, name, product_id: pid, version: ver })
+            .catch(e => console.warn('sync fail', e));
+          newId++;
+          imported++;
+        }
+      });
+
+      // Reset file input
+      event.target.value = '';
+      updateCounts();
+      applyFilters();
+      renderTable();
+
+      if (imported > 0) showToast('✅ 匯入 ' + imported + ' 筆，略過重複 ' + skipped + ' 筆', 'success');
+      else showToast('⚠️ 未匯入任何資料（可能全部重複或格式不符）', 'error');
+
+    } catch(err) {
+      console.error(err);
+      showToast('❌ 匯入失敗：' + err.message, 'error');
+      event.target.value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ============================================================
+// DOWNLOAD IMPORT TEMPLATE
+// ============================================================
+function downloadTemplate(cat) {
+  const templates = {
+    '商品標準書':  { title: '商品禮盒包裝作業明細表一覽表', headers: ['企劃編號','產品名稱','禮盒編號','版次'], widths: [17,57,28,8] },
+    '物料標準書':  { title: '物料標準明細表一覽表', headers: ['序號','物料名稱','物料編號','版次'], widths: [16,57,21,8] },
+    '外購品標準書': { title: '委外產品規格標準書一覽表', headers: ['文件編號','委外產品名稱','產品編號','版次'], widths: [14,40,22,8] }
+  };
+  const tmpl = templates[cat];
+  const aoa = [[tmpl.title,'','',''], tmpl.headers, ['(範例)','品名範例','12345','1']];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:3} }];
+  ws['!cols'] = tmpl.widths.map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, cat);
+  XLSX.writeFile(wb, '匯入範本_' + cat + '.xlsx');
+  closeTemplateModal();
+}
+
+// ============================================================
+// PASSWORD SYSTEM
+// ============================================================
+let APP_PWD = localStorage.getItem('std_pwd') || '05013258';
+let pwdBuffer = '';
+let pwdCallback = null;   // function to call after auth success
+let pwdSession = false;   // unlocked for this session
+
+function requireAuth(callback) {
+  if (pwdSession) { callback(); return; }
+  pwdBuffer = '';
+  pwdCallback = callback;
+  document.getElementById('pwdError').textContent = '';
+  document.getElementById('pwdHint').textContent = '驗證成功後本次操作不再詢問';
+  document.getElementById('pwdModalTitle').textContent = '🔒 請輸入密碼';
+  updatePwdDots();
+  document.getElementById('pwdModal').classList.add('open');
+  // Focus hidden input for keyboard capture
+  setTimeout(() => document.getElementById('pwdHiddenInput').focus(), 100);
+}
+
+// Keyboard support: hidden input captures keystrokes
+document.addEventListener('DOMContentLoaded', () => {
+  const hidden = document.getElementById('pwdHiddenInput');
+  if (!hidden) return;
+  hidden.addEventListener('input', (e) => {
+    // Use the hidden input value as source of truth
+    const val = hidden.value.replace(/\D/g, '').slice(0, 8);
+    hidden.value = val;
+    pwdBuffer = val;
+    updatePwdDots();
+    document.getElementById('pwdError').textContent = '';
+    if (pwdBuffer.length === APP_PWD.length) {
+      setTimeout(submitPwd, 150);
+    }
+  });
+  hidden.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace') {
+      // handled by input event
+    } else if (e.key === 'Enter') {
+      if (pwdBuffer.length > 0) submitPwd();
+    } else if (e.key === 'Escape') {
+      // Do nothing - password modal has no cancel
+    }
+  });
+});
+
+function pwdKey(k) {
+  if (pwdBuffer.length >= 8) return;
+  pwdBuffer += k;
+  syncHiddenInput();
+  updatePwdDots();
+  document.getElementById('pwdError').textContent = '';
+  if (pwdBuffer.length === APP_PWD.length) {
+    setTimeout(submitPwd, 150);
+  }
+}
+
+function pwdBack() {
+  pwdBuffer = pwdBuffer.slice(0, -1);
+  syncHiddenInput();
+  updatePwdDots();
+}
+
+function pwdClear() {
+  pwdBuffer = '';
+  syncHiddenInput();
+  updatePwdDots();
+}
+
+function syncHiddenInput() {
+  const h = document.getElementById('pwdHiddenInput');
+  if (h) h.value = pwdBuffer;
+}
+
+function updatePwdDots() {
+  const len = APP_PWD.length;
+  // Adjust visible dots count to match password length
+  for (let i = 0; i < 8; i++) {
+    const dot = document.getElementById('dot' + i);
+    if (!dot) continue;
+    dot.style.display = i < len ? '' : 'none';
+    dot.classList.toggle('filled', i < pwdBuffer.length);
+  }
+}
+
+function submitPwd() {
+  if (pwdBuffer === APP_PWD) {
+    pwdSession = true;
+    document.getElementById('pwdModal').classList.remove('open');
+    pwdBuffer = '';
+    syncHiddenInput();
+    updatePwdDots();
+    if (pwdCallback) { const cb = pwdCallback; pwdCallback = null; cb(); }
+  } else {
+    document.getElementById('pwdError').textContent = '密碼錯誤，請重試';
+    pwdBuffer = '';
+    syncHiddenInput();
+    updatePwdDots();
+    const dots = document.querySelectorAll('.pwd-dot');
+    dots.forEach(d => { d.style.background='var(--red)'; d.style.borderColor='var(--red)'; });
+    setTimeout(() => dots.forEach(d => { d.style.background=''; d.style.borderColor=''; }), 600);
+  }
+}
+
+function openChangePwd() {
+  document.getElementById('cpOld').value = '';
+  document.getElementById('cpNew').value = '';
+  document.getElementById('cpConfirm').value = '';
+  document.getElementById('cpError').textContent = '';
+  document.getElementById('changePwdModal').classList.add('open');
+  setTimeout(() => document.getElementById('cpOld').focus(), 100);
+}
+
+function closeChangePwd() {
+  document.getElementById('changePwdModal').classList.remove('open');
+}
+
+function confirmChangePwd() {
+  const old = document.getElementById('cpOld').value;
+  const nw  = document.getElementById('cpNew').value;
+  const cf  = document.getElementById('cpConfirm').value;
+  const err = document.getElementById('cpError');
+  if (old !== APP_PWD) { err.textContent = '目前密碼錯誤'; return; }
+  if (!nw)             { err.textContent = '請輸入新密碼'; return; }
+  if (nw !== cf)       { err.textContent = '兩次密碼不一致'; return; }
+  APP_PWD = nw;
+  localStorage.setItem('std_pwd', nw);
+  closeChangePwd();
+  document.getElementById('pwdModal').classList.remove('open');
+  showToast('✅ 密碼已更新', 'success');
+}
+
+function togglePwdPanel() {
+  const panel = document.getElementById('pwdPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    document.getElementById('inOld').value = '';
+    document.getElementById('inNew').value = '';
+    document.getElementById('inConfirm').value = '';
+    document.getElementById('inPwdError').textContent = '';
+    setTimeout(() => document.getElementById('inOld').focus(), 50);
+  }
+}
+
+function inlineSavePwd() {
+  const old = document.getElementById('inOld').value;
+  const nw  = document.getElementById('inNew').value;
+  const cf  = document.getElementById('inConfirm').value;
+  const err = document.getElementById('inPwdError');
+  if (old !== APP_PWD) { err.textContent = '❌ 目前密碼錯誤'; return; }
+  if (!nw)             { err.textContent = '❌ 請輸入新密碼'; return; }
+  if (nw !== cf)       { err.textContent = '❌ 兩次密碼不一致'; return; }
+  APP_PWD = nw;
+  localStorage.setItem('std_pwd', nw);
+  document.getElementById('pwdPanel').style.display = 'none';
+  showToast('✅ 密碼已更新', 'success');
+}
+
+// ============================================================
+// TEMPLATE MODAL
+// ============================================================
+function openTemplateModal() {
+  document.getElementById('templateModal').classList.add('open');
+}
+function closeTemplateModal() {
+  document.getElementById('templateModal').classList.remove('open');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type='success') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(20px)'; t.style.transition='all 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
+}
+
+// ============================================================
+// START
+// ============================================================
+
+// Expose functions to global scope (required for type="module")
+window.clearSearch = clearSearch;
+window.closeChangePwd = closeChangePwd;
+window.closeModal = closeModal;
+window.closeTemplateModal = closeTemplateModal;
+window.confirmChangePwd = confirmChangePwd;
+window.copyRow = copyRow;
+window.deleteRow = deleteRow;
+window.downloadTemplate = downloadTemplate;
+window.exportExcel = exportExcel;
+window.goPage = goPage;
+window.handleOverlayClick = handleOverlayClick;
+window.importExcel = importExcel;
+window.inlineSavePwd = inlineSavePwd;
+window.onSearch = onSearch;
+window.openAddModal = openAddModal;
+window.openChangePwd = openChangePwd;
+window.openEditModal = openEditModal;
+window.openTemplateModal = openTemplateModal;
+window.pwdBack = pwdBack;
+window.pwdClear = pwdClear;
+window.pwdKey = pwdKey;
+window.requireAuth = requireAuth;
+window.saveRecord = saveRecord;
+window.setCategory = setCategory;
+window.sortBy = sortBy;
+window.togglePwdPanel = togglePwdPanel;
+window.toggleRow = toggleRow;
+window.updateCodeHint = updateCodeHint;
+window.loadFromFirestore = loadFromFirestore;
+
+// Start
+try {
+  init();
+} catch(e) {
+  console.error('init error:', e);
+  document.body.insertAdjacentHTML('afterbegin',
+    '<div style="background:red;color:white;padding:12px;font-size:13px;">初始化錯誤: '+e.message+'</div>'
+  );
+}
+</script>
+</body>
+</html>
