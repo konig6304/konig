@@ -869,45 +869,54 @@ let state = {
 // ============================================================
 // AUTO CODE GENERATION
 // ============================================================
-// Async version: queries Firebase for latest code to avoid duplicates
+// Async: uses Firebase atomic counter to prevent duplicate codes
 async function getNextCode(category) {
   try {
-    // Query Firebase for latest codes of this category
-    const res = await fetch(_RTDB + '/standards.json?orderBy="category"&equalTo="' + encodeURIComponent(category) + '"&limitToLast=200');
-    const data = await res.json();
-    const codes = data ? Object.values(data).map(r => r.code || '').filter(Boolean) : [];
-
     if (category === '商品標準書') {
       const now = new Date();
       const rocYear = now.getFullYear() - 1911;
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const prefix = String(rocYear) + month;
-      // Also check local DB for any unsaved ones
-      const localCodes = DB.filter(r => r.category === '商品標準書' && r.code.startsWith(prefix))
-                           .map(r => r.code);
-      const allCodes = [...new Set([...codes, ...localCodes])].filter(c => c.startsWith(prefix));
-      let maxSeq = 0;
-      allCodes.forEach(c => {
-        const seq = parseInt(c.slice(prefix.length));
-        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      const counterKey = 'counters/goods_' + prefix;
+      // Read current counter
+      const res = await fetch(_RTDB + '/' + counterKey + '.json');
+      const val = await res.json();
+      const next = (val || 0) + 1;
+      // Write incremented value
+      await fetch(_RTDB + '/' + counterKey + '.json', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(next)
       });
-      return prefix + String(maxSeq + 1).padStart(3, '0');
+      return prefix + String(next).padStart(3, '0');
 
     } else if (category === '物料標準書') {
-      const remotNums = codes.filter(c => /^\d{4,7}$/.test(c)).map(c => parseInt(c));
-      const localNums = DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code));
-      const max = Math.max(0, ...remotNums, ...localNums);
-      return String(max + 1).padStart(7, '0');
+      const res = await fetch(_RTDB + '/counters/material.json');
+      const val = await res.json();
+      // Find max from DB as starting point if counter not set
+      const localMax = Math.max(0, ...DB.filter(r => r.category === '物料標準書' && /^\d{4,7}$/.test(r.code)).map(r => parseInt(r.code)));
+      const next = Math.max((val || 0), localMax) + 1;
+      await fetch(_RTDB + '/counters/material.json', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(next)
+      });
+      return String(next).padStart(7, '0');
 
     } else {
-      const remoteNums = codes.filter(c => /^WI-O-\d+$/.test(c)).map(c => parseInt(c.replace('WI-O-', '')));
-      const localNums = DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', '')));
-      const max = Math.max(0, ...remoteNums, ...localNums);
-      return 'WI-O-' + String(max + 1).padStart(3, '0');
+      const res = await fetch(_RTDB + '/counters/external.json');
+      const val = await res.json();
+      const localMax = Math.max(0, ...DB.filter(r => r.category === '外購品標準書' && /^WI-O-\d+$/.test(r.code)).map(r => parseInt(r.code.replace('WI-O-', ''))));
+      const next = Math.max((val || 0), localMax) + 1;
+      await fetch(_RTDB + '/counters/external.json', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(next)
+      });
+      return 'WI-O-' + String(next).padStart(3, '0');
     }
   } catch(e) {
-    // Fallback to local DB if Firebase query fails
-    console.warn('Firebase code query failed, using local:', e);
+    console.warn('Firebase counter failed, using local:', e);
     return getNextCodeLocal(category);
   }
 }
@@ -1516,7 +1525,7 @@ function downloadTemplate(cat) {
 let APP_PWD = localStorage.getItem('std_pwd') || '05013258';
 let pwdBuffer = '';
 let pwdCallback = null;   // function to call after auth success
-let pwdSession = false;   // unlocked for this session
+let pwdSession = sessionStorage.getItem('pwd_unlocked') === '1';   // persist within browser tab
 
 function requireAuth(callback) {
   if (pwdSession) { callback(); return; }
@@ -1599,6 +1608,7 @@ function updatePwdDots() {
 function submitPwd() {
   if (pwdBuffer === APP_PWD) {
     pwdSession = true;
+    sessionStorage.setItem('pwd_unlocked', '1');
     document.getElementById('pwdModal').classList.remove('open');
     pwdBuffer = '';
     syncHiddenInput();
